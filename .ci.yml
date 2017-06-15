@@ -1,0 +1,25 @@
+environment:
+  language: java
+  language_versions: 1.8.0_72
+
+  packages:
+    - apache_maven-3.2.3
+
+build:
+  run:
+    - mvn clean verify -Pci
+
+notifications:
+<% if ( GIT_URL =~ /jtier\/jtier-ctx/ ) { %>
+  <% if( DOTCI_BRANCH == 'master' || DOTCI_BRANCH == 'develop' ) { %>
+  - email: jtier@groupon.com
+  <% } %>
+<% } %>
+
+plugins:
+  - artifacts: '**/checkstyle-result.xml, **/findbugsXml.xml, **/surefire-reports/**.xml, **/pmd.xml, **/jacoco.exec, **/site/cobertura/*.xml'
+  - checkstyle
+  - junit
+#  - pmd
+  - findbugs
+  - cobertura
