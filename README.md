@@ -57,7 +57,7 @@ to the thread after execution.
 - Propagate context onto outgoing requests at the latest reasonable point.
 - Prefer to receive `Ctx` explicitly rather than via attachment.
 - Set request timeouts (via a deadline) on downstream calls based on SLA or time remaining, whichever is lower.
-- Hook into CANCEL and FINISH lifecycle hooks to free up resources and abort early when appropriate.
+- Hook into CANCEL lifecycle hook to free up resources and abort early when appropriate.
 
 # Features Missing Right Now
 
