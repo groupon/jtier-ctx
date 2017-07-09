@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
  * Ctx *may* be used by libraries themselves to tunnel information, but this is discouraged. It is
  * generally MUCH better to be explicit about passing things around.
  * <p>
- * Applications which need to make use of a Ctx should explicitely pass and receive contexts, rather
+ * Applications which need to make use of a Ctx should explicitly pass and receive contexts, rather
  * than relying on the thread local tunneling capacities.
  */
 public class Ctx implements AutoCloseable {
