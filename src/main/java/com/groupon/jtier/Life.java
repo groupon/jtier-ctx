@@ -92,18 +92,28 @@ class Life {
 
     }
 
-    void onCancel(final Runnable runnable) {
+    Disposable onCancel(final Runnable runnable) {
         if (isCancelled()) {
             runnable.run();
-            return;
+            return () -> {};
         }
 
         this.lock.lock();
         try {
             this.cancelListeners.add(runnable);
-        } finally {
+        }
+        finally {
             this.lock.unlock();
         }
+        return () -> {
+            this.lock.lock();
+            try {
+                this.cancelListeners.remove(runnable);
+            }
+            finally {
+                this.lock.unlock();
+            }
+        };
     }
 
     private enum State {
