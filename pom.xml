@@ -24,14 +24,14 @@
     <groupId>com.groupon.jtier</groupId>
     <artifactId>jtier-ctx</artifactId>
     <packaging>jar</packaging>
-    <version>0.6.0</version>
+    <version>0.7.0-SNAPSHOT</version>
     <name>Ctx</name>
 
     <scm>
         <connection>scm:git:github:groupon/jtier-ctx.git</connection>
         <developerConnection>scm:git:github:groupon/jtier-ctx.git</developerConnection>
         <url>https://github.com/groupon/jtier-ctx</url>
-        <tag>jtier-ctx-0.6.0</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <properties>
