@@ -13,7 +13,6 @@
  */
 package com.groupon.jtier;
 
-
 import java.lang.reflect.Proxy;
 import java.time.Duration;
 import java.util.Collections;
@@ -233,25 +232,33 @@ public class Ctx implements AutoCloseable {
     /**
      * Add a callback to be invoked when this context is detached from a thread.
      * It will be invoked on the thread from which it is being detached.
+     *
+     * @return a {@link Disposable} that can cancel the callback.
      */
-    public void onDetach(final Runnable runnable) {
+    public Disposable onDetach(final Runnable runnable) {
         this.detachListeners.add(runnable);
+        return () -> this.detachListeners.remove(runnable);
     }
 
     /**
      * Add a callback to be invoked when this context is attached to a thread.
      * It will be invoked on the thread to which it is being attached.
+     *
+     * @return a {@link Disposable} that can cancel the callback.
      */
-    public void onAttach(final Runnable runnable) {
+    public Disposable onAttach(final Runnable runnable) {
         this.attachListeners.add(runnable);
+        return () -> this.attachListeners.remove(runnable);
     }
 
     /**
      * Callback which will be invoked if/when the Ctx is cancelled. If the Ctx is
      * already canceled, the callback will be invoked immediately.
+     *
+     * @return a {@link Disposable} that can cancel the callback.
      */
-    public void onCancel(final Runnable runnable) {
-        this.life.onCancel(runnable);
+    public Disposable onCancel(final Runnable runnable) {
+        return this.life.onCancel(runnable);
     }
 
     /**
@@ -277,15 +284,14 @@ public class Ctx implements AutoCloseable {
      * runnable is run.
      */
     public Runnable propagate(final Runnable r) {
-        final Ctx self = this;
         return () -> {
             final Optional<Ctx> attached = Ctx.fromThread();
             if (attached.isPresent()) {
-                if (attached.get() == self) {
+                if (attached.get() == Ctx.this) {
                     r.run();
                 }
                 else {
-                    try (Ctx ignored = self.attachToThread()) {
+                    try (Ctx ignored = Ctx.this.attachToThread()) {
                         r.run();
                     } finally {
                         // reattach previous ctx
@@ -295,7 +301,7 @@ public class Ctx implements AutoCloseable {
             }
             else {
                 // no pre-existing context on the thread
-                try (Ctx _i = this.attachToThread()) {
+                try (Ctx _i = Ctx.this.attachToThread()) {
                     r.run();
                 }
             }
@@ -307,15 +313,14 @@ public class Ctx implements AutoCloseable {
      * runnable is run.
      */
     public <T> Callable<T> propagate(final Callable<T> r) {
-        final Ctx self = this;
         return () -> {
             final Optional<Ctx> attached = Ctx.fromThread();
             if (attached.isPresent()) {
-                if (attached.get() == self) {
+                if (attached.get() == Ctx.this) {
                     return r.call();
                 }
                 else {
-                    try (Ctx ignored = self.attachToThread()) {
+                    try (Ctx ignored = Ctx.this.attachToThread()) {
                         return r.call();
                     } finally {
                         // reattach previous ctx
@@ -325,7 +330,7 @@ public class Ctx implements AutoCloseable {
             }
             else {
                 // no pre-existing context on the thread
-                try (Ctx _i = this.attachToThread()) {
+                try (Ctx _i = Ctx.this.attachToThread()) {
                     return r.call();
                 }
             }

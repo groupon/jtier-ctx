@@ -41,6 +41,25 @@ public class LifeEventsTest {
     }
 
     @Test
+    public void testCancelEventDisposes() throws Exception {
+        final Ctx d = Ctx.empty();
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicBoolean canceled = new AtomicBoolean(false);
+
+        Disposable disposable = d.onCancel(() -> {
+            canceled.set(true);
+            latch.countDown();
+        });
+        
+        disposable.dispose();
+        
+        d.cancel();
+
+        assertThat(latch.await(20, TimeUnit.MILLISECONDS)).isFalse();
+        assertThat(canceled.get()).isFalse();
+    }
+
+    @Test
     public void testCancelParentCancelsChildren() throws Exception {
         final Ctx p = Ctx.empty();
         final Ctx c = p.createChild();
