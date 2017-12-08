@@ -18,8 +18,8 @@
 
     <parent>
         <groupId>org.basepom</groupId>
-        <artifactId>basepom-standard-oss</artifactId>
-        <version>15</version>
+        <artifactId>basepom-oss</artifactId>
+        <version>25</version>
     </parent>
 
     <groupId>com.groupon.jtier</groupId>
