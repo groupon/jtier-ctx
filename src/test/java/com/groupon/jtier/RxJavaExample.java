@@ -44,7 +44,7 @@ public class RxJavaExample {
                                             () -> completed.set(true));
 
         // unsubscribe when currentExchange is cancelled
-        ctx.onCancel(s::unsubscribe);
+        ctx.onCancel((_o) -> s.unsubscribe());
 
         // receive first event
         ticker.advanceTimeBy(10, TimeUnit.MILLISECONDS);

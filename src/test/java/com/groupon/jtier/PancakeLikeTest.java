@@ -38,9 +38,9 @@ public class PancakeLikeTest {
         clock.schedule(() -> fi.complete(7), 200, TimeUnit.MILLISECONDS);
         clock.schedule(() -> fd.complete(4.2), 300, TimeUnit.MILLISECONDS);
 
-        ctx.onCancel(() -> fs.cancel(false));
-        ctx.onCancel(() -> fi.cancel(false));
-        ctx.onCancel(() -> fd.cancel(false));
+        ctx.onCancel((_o) -> fs.cancel(false));
+        ctx.onCancel((_o) -> fi.cancel(false));
+        ctx.onCancel((_o) -> fd.cancel(false));
 
         clock.advance(150, TimeUnit.MILLISECONDS).get();
         ctx.cancel();

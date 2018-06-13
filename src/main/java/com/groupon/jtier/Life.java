@@ -26,13 +26,16 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
 class Life {
     private final AtomicReference<Timeout> timeout = new AtomicReference<>();
     private final AtomicReference<State> state = new AtomicReference<>(State.ALIVE);
-    private final List<Runnable> cancelListeners = new CopyOnWriteArrayList<>();
+    private final AtomicReference<Optional<Throwable>> cancelCause = new AtomicReference<>(Optional.empty());
+    private final List<Consumer<Optional<Throwable>>> cancelListeners = new CopyOnWriteArrayList<>();
     private final ReentrantLock lock = new ReentrantLock();
 
 
@@ -40,12 +43,12 @@ class Life {
         parent.ifPresent((p) -> p.onCancel(this::cancel));
     }
 
-    void cancel() {
+    void cancel(Optional<Throwable> cause) {
         this.lock.lock();
         try {
             if (this.state.get() == State.ALIVE) {
                 this.state.set(State.CANCELLED);
-                this.cancelListeners.forEach(Runnable::run);
+                this.cancelListeners.forEach((l) -> l.accept(cause));
                 this.cancelListeners.clear();
             }
         } finally {
@@ -56,7 +59,9 @@ class Life {
     void startTimeout(final long time, final TimeUnit unit, final ScheduledExecutorService scheduler) {
         this.lock.lock();
         try {
-            final ScheduledFuture<?> future = scheduler.schedule(this::cancel, time, unit);
+            final ScheduledFuture<?> future = scheduler.schedule(() -> {
+                cancel(Optional.of(new TimeoutException("Operation timed out after " + timeout.get().finishAt())));
+            }, time, unit);
 
             final ChronoUnit cronut = chronoUnit(unit);
             final Timeout t = new TimeoutBuilder().future(future).finishAt(Instant.now().plus(time, cronut)).build();
@@ -92,9 +97,9 @@ class Life {
 
     }
 
-    Disposable onCancel(final Runnable runnable) {
+    Disposable onCancel(final Consumer<Optional<Throwable>> runnable) {
         if (isCancelled()) {
-            runnable.run();
+            runnable.accept(cancelCause.get());
             return () -> {};
         }
 

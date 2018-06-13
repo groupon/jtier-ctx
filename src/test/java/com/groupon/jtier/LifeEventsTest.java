@@ -29,7 +29,7 @@ public class LifeEventsTest {
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicBoolean canceled = new AtomicBoolean(false);
 
-        d.onCancel(() -> {
+        d.onCancel((_o) -> {
             canceled.set(true);
             latch.countDown();
         });
@@ -46,13 +46,13 @@ public class LifeEventsTest {
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicBoolean canceled = new AtomicBoolean(false);
 
-        Disposable disposable = d.onCancel(() -> {
+        Disposable disposable = d.onCancel((_o) -> {
             canceled.set(true);
             latch.countDown();
         });
-        
+
         disposable.dispose();
-        
+
         d.cancel();
 
         assertThat(latch.await(20, TimeUnit.MILLISECONDS)).isFalse();
@@ -66,7 +66,7 @@ public class LifeEventsTest {
 
         final AtomicBoolean canceled = new AtomicBoolean(false);
 
-        c.onCancel(() -> canceled.set(true));
+        c.onCancel((_o) -> canceled.set(true));
 
         p.cancel();
         assertThat(canceled.get()).isTrue();
@@ -77,7 +77,7 @@ public class LifeEventsTest {
         final Ctx c = Ctx.empty();
         c.cancel();
         final boolean[] canceled = {false};
-        c.onCancel(() -> canceled[0] = true );
+        c.onCancel((_o) -> canceled[0] = true );
         assertThat(canceled[0]).isTrue();
     }
 }

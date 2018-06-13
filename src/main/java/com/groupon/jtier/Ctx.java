@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * Ctx provides a means of tunneling context around between libraries, and occasionally, within
@@ -75,7 +76,7 @@ public class Ctx implements AutoCloseable {
      * It is preferred to use {@link Ctx#close()}.
      */
     public static void cleanThread() {
-        ATTACHED.get().ifPresent(Ctx::close);
+        ATTACHED.get().ifPresent(Ctx::detach);
     }
 
     public static <T> Key<T> key(final String name, final Class<T> type) {
@@ -85,13 +86,13 @@ public class Ctx implements AutoCloseable {
     /**
      * @return
      */
-    public Ctx attachToThread() {
+    public Ctx attach() {
         final Optional<Ctx> previouslyAttached = ATTACHED.get();
         if (previouslyAttached.isPresent()) {
             if (previouslyAttached.get() == this) {
                 return this;
             }
-            previouslyAttached.get().close();
+            previouslyAttached.get().detach();
         }
 
         ATTACHED.set(Optional.of(this));
@@ -108,8 +109,7 @@ public class Ctx implements AutoCloseable {
     }
 
     public <T> Ctx with(final Key<T> key, final T value) {
-        final Map<Key<?>, Object> next = new HashMap<>();
-        next.putAll(this.values);
+        final Map<Key<?>, Object> next = new HashMap<>(this.values);
         next.put(key, value);
         return new Ctx(this.life, next);
     }
@@ -140,9 +140,9 @@ public class Ctx implements AutoCloseable {
         final Ctx ctx = (Ctx) o;
 
         return this.life.equals(ctx.life) &&
-                this.values.equals(ctx.values) &&
-                this.attachListeners.equals(ctx.attachListeners) &&
-                this.detachListeners.equals(ctx.detachListeners);
+               this.values.equals(ctx.values) &&
+               this.attachListeners.equals(ctx.attachListeners) &&
+               this.detachListeners.equals(ctx.detachListeners);
 
     }
 
@@ -204,6 +204,17 @@ public class Ctx implements AutoCloseable {
      */
     @Override
     public void close() {
+        this.cancel();
+    }
+
+    /**
+     * Cancel this context.
+     */
+    public void cancel(Throwable cause) {
+        this.life.cancel(Optional.of(cause));
+    }
+
+    public void detach() {
         final Optional<Ctx> o = ATTACHED.get();
         if (o.isPresent()) {
             final Ctx attached = o.get();
@@ -222,7 +233,7 @@ public class Ctx implements AutoCloseable {
      * Cancel this context.
      */
     public void cancel() {
-        this.life.cancel();
+        this.life.cancel(Optional.empty());
     }
 
     public boolean isCancelled() {
@@ -257,7 +268,7 @@ public class Ctx implements AutoCloseable {
      *
      * @return a {@link Disposable} that can cancel the callback.
      */
-    public Disposable onCancel(final Runnable runnable) {
+    public Disposable onCancel(final Consumer<Optional<Throwable>> runnable) {
         return this.life.onCancel(runnable);
     }
 
@@ -291,18 +302,23 @@ public class Ctx implements AutoCloseable {
                     r.run();
                 }
                 else {
-                    try (Ctx ignored = Ctx.this.attachToThread()) {
+                    final Ctx ctx = Ctx.this.attach();
+                    try {
                         r.run();
+
                     } finally {
-                        // reattach previous ctx
-                        attached.get().attachToThread();
+                        ctx.detach();
+                        attached.get().attach();
                     }
                 }
             }
             else {
                 // no pre-existing context on the thread
-                try (Ctx _i = Ctx.this.attachToThread()) {
+                final Ctx ctx = Ctx.this.attach();
+                try {
                     r.run();
+                } finally {
+                    ctx.detach();
                 }
             }
         };
@@ -320,17 +336,17 @@ public class Ctx implements AutoCloseable {
                     return r.call();
                 }
                 else {
-                    try (Ctx ignored = Ctx.this.attachToThread()) {
+                    try (Ctx ignored = Ctx.this.attach()) {
                         return r.call();
                     } finally {
                         // reattach previous ctx
-                        attached.get().attachToThread();
+                        attached.get().attach();
                     }
                 }
             }
             else {
                 // no pre-existing context on the thread
-                try (Ctx _i = Ctx.this.attachToThread()) {
+                try (Ctx _i = Ctx.this.attach()) {
                     return r.call();
                 }
             }

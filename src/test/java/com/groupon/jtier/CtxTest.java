@@ -52,10 +52,11 @@ public class CtxTest {
     public void testExplicitThreadLocalInfection() throws Exception {
         final Ctx root = Ctx.empty();
 
-        try (Ctx i = root.attachToThread()) {
+        try (Ctx i = root.attach()) {
             assertThat(Ctx.fromThread()).isPresent();
             final Ctx magic = Ctx.fromThread().get();
             assertThat(magic).isEqualTo(i);
+            i.detach();
         }
 
         assertThat(Ctx.fromThread().isPresent()).isFalse();
@@ -72,7 +73,7 @@ public class CtxTest {
         final Ctx eric = brian.with(NAME, "Eric");
         final Ctx keith = brian.with(NAME, "Keith");
 
-        brian.cancel();
+        brian.close();
 
         assertThat(brian.isCancelled()).isTrue();
         assertThat(eric.isCancelled()).isTrue();
@@ -119,7 +120,7 @@ public class CtxTest {
             }
         };
 
-        try (Ctx _i = Ctx.empty().attachToThread()) {
+        try (Ctx _i = Ctx.empty().attach()) {
             pool.execute(command);
         }
         pool.awaitTermination(1, TimeUnit.SECONDS);
@@ -131,19 +132,19 @@ public class CtxTest {
         final Ctx c = Ctx.empty();
 
         c.runAttached(() -> {
-            assertThatThrownBy(() -> Ctx.empty().close()).isInstanceOf(IllegalStateException.class);
+            assertThatThrownBy(() -> Ctx.empty().detach()).isInstanceOf(IllegalStateException.class);
         });
     }
 
     @Test
     public void testAttachNoContext() throws Exception {
-        assertThatThrownBy(() -> Ctx.empty().close()).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> Ctx.empty().detach()).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     public void testStaticDetachCallsListeners() throws Exception {
         final Ctx c = Ctx.empty();
-        c.attachToThread();
+        c.attach();
 
         final AtomicBoolean ran = new AtomicBoolean(false);
         c.onDetach(() -> ran.set(true));
@@ -155,9 +156,9 @@ public class CtxTest {
     @Test
     public void testPeerCloseRaisesException() throws Exception {
         final Ctx ctx = Ctx.empty();
-        ctx.attachToThread();
+        ctx.attach();
         final Ctx peer = ctx.with(Ctx.key("hello", String.class), "world");
-        assertThatThrownBy(peer::close).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(peer::detach).isInstanceOf(IllegalStateException.class);
         ctx.close();
     }
 
@@ -166,11 +167,11 @@ public class CtxTest {
         final Ctx one = Ctx.empty();
         final AtomicBoolean one_detached = new AtomicBoolean(false);
         one.onDetach(() -> one_detached.set(true));
-        one.attachToThread();
+        one.attach();
 
         final Ctx two = Ctx.empty();
-        two.attachToThread();
-        two.close();
+        two.attach();
+        two.detach();
 
         assertThat(one_detached.get()).describedAs("detach listener was not invoked")
                                       .isTrue();
@@ -179,7 +180,7 @@ public class CtxTest {
     @Test
     public void testCleanThreadCleans() throws Exception {
         final Ctx one = Ctx.empty();
-        one.attachToThread();
+        one.attach();
         Ctx.cleanThread();
         final Optional<Ctx> ft = Ctx.fromThread();
         assertThat(ft).isEmpty();
@@ -209,7 +210,7 @@ public class CtxTest {
 
     @Test
     public void testPropagateRunnableRestoresState() throws Exception {
-        final Ctx existing = Ctx.empty().attachToThread();
+        final Ctx existing = Ctx.empty().attach();
 
         Ctx.empty().with(Ctx.key("hello", String.class), "world")
            .propagate(() -> {
@@ -232,7 +233,7 @@ public class CtxTest {
 
     @Test
     public void testPropogateCallableRestoresState() throws Exception {
-        final Ctx existing = Ctx.empty().attachToThread();
+        final Ctx existing = Ctx.empty().attach();
 
         Ctx.empty().with(Ctx.key("hello", String.class), "world")
            .propagate(() -> Ctx.fromThread()

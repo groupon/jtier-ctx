@@ -57,7 +57,7 @@ public class OkHttpExample {
 
         final UUID id = UUID.randomUUID();
 
-        try (Ctx _i = Ctx.empty().with(REQUEST_ID, id).attachToThread()) {
+        try (Ctx _i = Ctx.empty().with(REQUEST_ID, id).attach()) {
             final Call call = this.ok.newCall(new Request.Builder().url(this.web.url("/")).build());
             final Response response = call.execute();
             assertThat(response.code()).isEqualTo(200);

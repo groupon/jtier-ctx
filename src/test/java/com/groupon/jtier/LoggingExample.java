@@ -33,9 +33,11 @@ public class LoggingExample {
         c.onAttach(() -> MDC.put("name", "grumbly"));
         c.onDetach(MDC::clear);
 
-        try (Ctx ignored = c.attachToThread()) {
+
+        try (Ctx ignored = c.attach()) {
             final Logger logger = LoggerFactory.getLogger(LoggingExample.class);
             logger.debug("log");
+            ignored.detach();
         }
 
         assertThat(MDC.get("name")).isNull();
