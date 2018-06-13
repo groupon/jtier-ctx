@@ -36,8 +36,10 @@ import java.util.function.Consumer;
  * Ctx *may* be used by libraries themselves to tunnel information, but this is discouraged. It is
  * generally MUCH better to be explicit about passing things around.
  * <p>
- * Applications which need to make use of a Ctx should explicitly pass and receive contexts, rather
+ * Applications which need to make use of a Ctx *should* explicitly pass and receive contexts, rather
  * than relying on the thread local tunneling capacities.
+ * <p>
+ * Ctx has a simple lifecycle. When it is created it is live, when canceled it transitions to canceled.
  */
 public class Ctx implements AutoCloseable {
 
@@ -383,6 +385,16 @@ public class Ctx implements AutoCloseable {
             return this.type.cast(obj);
         }
 
+        public Optional<T> get() {
+            return Ctx.fromThread().flatMap((ctx) -> ctx.get(this));
+        }
+
+        public Ctx set(T value) {
+            final Ctx ctx = Ctx.fromThread()
+                               .orElseThrow(() -> new IllegalStateException("may not set value, no Ctx set"));
+            return ctx.with(this, value).attach();
+        }
+
         @Override
         public boolean equals(final Object o) {
             if (this == o) {
@@ -391,11 +403,8 @@ public class Ctx implements AutoCloseable {
             if (o == null || getClass() != o.getClass()) {
                 return false;
             }
-
             final Key<?> key = (Key<?>) o;
-
             return this.type.equals(key.type) && this.name.equals(key.name);
-
         }
 
         @Override
