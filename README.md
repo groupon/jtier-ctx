@@ -5,11 +5,12 @@ information between libraries or components without those libraries or component
 of what is being tunneled. It is a practical hack, and care should be used to avoid using it except where
 it is needed. Examples of context propagation include request ids, timeouts, and shared cancellations.
 
-Ctx is heavily influenced by Golang's `context` package.
+Ctx is heavily influenced by Golang's `context` package and is *very* similar to 
+[GRPC's Context](https://grpc.io/grpc-java/javadoc/io/grpc/Context.html), which it predates.
 
 # Using `Ctx`
 
-## Timeouts and cancelations
+## Timeouts and Cancellations
 
 The most common application level use of Ctx is to handle high level timeouts and cancellations. Cancellation allows
 a coordinated cancellation of arbitrary downstream operations. For example, if there are three concurrent API calls
@@ -25,16 +26,19 @@ exists in Ctx to support it. After the timeout has elapsed, the context will be 
 A Ctx is `alive` or `cancelled`. By default, a ctx is `alive`. if it is cancelled, it becomes cancelled. Once a context
 has been cancelled, it remains cancelled.
 
-Multiple contexts can share the same liveness, and transition at the same time. A context derived from another by adding a value to it is a "peer" to the context from which it was derived. A context created via `createChild` is a child. Peer contexts share the same liveness, and cancellation propagates to child contexts, but not up to parent contexts. This mechanism allows for hierarchical cancellation, and for contexts which are manipulated after being created to not lose their coordinated liveness.
+Multiple contexts can share the same liveness, and transition at the same time. A context derived from another by adding 
+a value to it is a "peer" to the context from which it was derived. A context created via `createChild` is a child. Peer 
+contexts share the same liveness, and cancellation propagates to child contexts, but not up to parent contexts. This 
+mechanism allows for hierarchical cancellation, and for contexts which are manipulated after being created to not lose 
+their coordinated liveness.
 
 If a context with the same values, but an independent lifecycle is needed, this can be created via `Ctx#newRoot()`.
 
 ## Thread Attachment
 
 Because one of the key purposes of a context is to tunnel information between libraries, contexts support
-being attached to threads. The correct way to use this is to call `Ctx#attachToThread()` to attach a particular
-context to the current thread, then `Ctx#close()` to later detach it. The best way to do this is either in a try-with-resources block, or `Ctx#runAttached` which will attach and clean up a Ctx. It is crucial to note that
-_only_ a context attached to the current thread may be closed, closing an unattached one will raise an `IllegalStateException`. If a thread must be cleaned up when there is no reference to the context available, the state method `Ctx.cleanThread()` may be used. It is better to use `Ctx#close()` however.
+being attached to threads. The correct way to use this is to call `Ctx#attach()` to attach a particular
+context to the current thread, then `Ctx#detach()` to later detach it. 
 
 ## Propagating Context
 
@@ -63,9 +67,12 @@ to the thread after execution.
 
 ## Data Serialization
 
-Require data be serializable to Map<String, String> for external propagation. This needs to be managed carefully so we don't wind up propagating too much, if folks take to abusing `Ctx` to be quasi-dynamic scoping.
+Require data be serializable to Map<String, String> for external propagation. This needs to be managed carefully so we 
+don't wind up propagating too much, if folks take to abusing `Ctx` to be quasi-dynamic scoping.
 
-In order to support dumb data elements, we probably want to support serializers registered on the context or globally, as well as serialization-aware data types on keys. This allows a custom type to decide for itself how to serialize, and built in types to make use of registered serializers.
+In order to support dumb data elements, we probably want to support serializers registered on the context or globally, 
+as well as serialization-aware data types on keys. This allows a custom type to decide for itself how to serialize, and 
+built in types to make use of registered serializers.
 
 Alternately, `jackson-datatype-ctx` though that seems overkill :-)
 
@@ -73,10 +80,15 @@ Alternately, `jackson-datatype-ctx` though that seems overkill :-)
 
 ## Propagation of Dynamic Timeouts
 
-If a deadline is set on a request, we should pass that information downstream so that the target of an RPC can make use of that information to optimize their timeouts.
+If a deadline is set on a request, we should pass that information downstream so that the target of an RPC can make use 
+of that information to optimize their timeouts.
 
-Once this mechanism is determined, possibly just an `Timeout` header, consider detecting the header and scheduling cancellation appropriately at time of RPC receipt.
+Once this mechanism is determined, possibly just an `Timeout` header, consider detecting the header and scheduling 
+cancellation appropriately at time of RPC receipt.
 
 ## Plugin Data
 
-Expose lifecycle events to keys -- this makes data into fully lifecycle aware plugin type things. It would allow deadline and lifecycle to be plugins (if plugins could interact). Right now this seems to be over-eager generalization, but it might be useful if we find a third thing that would make use of it. Going down this path implies keys might only be types, not name and type, as they currently are.
+Expose lifecycle events to keys -- this makes data into fully lifecycle aware plugin type things. It would allow 
+deadline and lifecycle to be plugins (if plugins could interact). Right now this seems to be over-eager generalization, 
+but it might be useful if we find a third thing that would make use of it. Going down this path implies keys might only 
+be types, not name and type, as they currently are.
