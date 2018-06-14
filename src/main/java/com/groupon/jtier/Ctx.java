@@ -310,29 +310,17 @@ public class Ctx implements AutoCloseable {
      */
     public Runnable propagate(final Runnable r) {
         return () -> {
-            final Optional<Ctx> attached = Ctx.fromThread();
-            if (attached.isPresent()) {
-                if (attached.get() == Ctx.this) {
-                    r.run();
-                }
-                else {
-                    final Ctx ctx = Ctx.this.attach();
-                    try {
-                        r.run();
-
-                    } finally {
-                        ctx.detach();
-                        attached.get().attach();
-                    }
-                }
+            final Ctx previous = Ctx.current();
+            if (previous == Ctx.this) {
+                r.run();
             }
             else {
-                // no pre-existing context on the thread
-                final Ctx ctx = Ctx.this.attach();
+                Ctx.this.attach();
                 try {
                     r.run();
+
                 } finally {
-                    ctx.detach();
+                    previous.attach();
                 }
             }
         };
@@ -344,26 +332,19 @@ public class Ctx implements AutoCloseable {
      */
     public <T> Callable<T> propagate(final Callable<T> r) {
         return () -> {
-            final Optional<Ctx> attached = Ctx.fromThread();
-            if (attached.isPresent()) {
-                if (attached.get() == Ctx.this) {
+            final Ctx attached = Ctx.current();
+                if (attached == Ctx.this) {
                     return r.call();
                 }
                 else {
-                    try (Ctx ignored = Ctx.this.attach()) {
+                    Ctx.this.attach();
+                    try {
                         return r.call();
                     } finally {
-                        // reattach previous ctx
-                        attached.get().attach();
+                        attached.attach();
                     }
                 }
-            }
-            else {
-                // no pre-existing context on the thread
-                try (Ctx _i = Ctx.this.attach()) {
-                    return r.call();
-                }
-            }
+
         };
     }
 
