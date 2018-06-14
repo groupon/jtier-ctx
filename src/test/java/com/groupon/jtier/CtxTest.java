@@ -57,14 +57,11 @@ public class CtxTest {
             final Ctx magic = Ctx.fromThread().get();
             assertThat(magic).isEqualTo(i);
             i.detach();
-        }
-
-        assertThat(Ctx.fromThread().isPresent()).isFalse();
-    }
+        } }
 
     @Test
-    public void testThreadLocalNotAllowedWithoutInject() throws Exception {
-        assertThat(Ctx.fromThread()).isEmpty();
+    public void testThereIsAlwaysAContext() throws Exception {
+        assertThat(Ctx.fromThread()).isNotEmpty();
     }
 
     @Test
@@ -128,20 +125,6 @@ public class CtxTest {
     }
 
     @Test
-    public void testDetachWrongCtx() throws Exception {
-        final Ctx c = Ctx.empty();
-
-        c.runAttached(() -> {
-            assertThatThrownBy(() -> Ctx.empty().detach()).isInstanceOf(IllegalStateException.class);
-        });
-    }
-
-    @Test
-    public void testAttachNoContext() throws Exception {
-        assertThatThrownBy(() -> Ctx.empty().detach()).isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
     public void testStaticDetachCallsListeners() throws Exception {
         final Ctx c = Ctx.empty();
         c.attach();
@@ -151,15 +134,6 @@ public class CtxTest {
 
         Ctx.cleanThread();
         assertThat(ran.get()).isTrue();
-    }
-
-    @Test
-    public void testPeerCloseRaisesException() throws Exception {
-        final Ctx ctx = Ctx.empty();
-        ctx.attach();
-        final Ctx peer = ctx.with(Ctx.key("hello", String.class), "world");
-        assertThatThrownBy(peer::detach).isInstanceOf(IllegalStateException.class);
-        ctx.close();
     }
 
     @Test
@@ -183,7 +157,8 @@ public class CtxTest {
         one.attach();
         Ctx.cleanThread();
         final Optional<Ctx> ft = Ctx.fromThread();
-        assertThat(ft).isEmpty();
+        assertThat(ft).isPresent();
+        assertThat(ft.get()).isNotSameAs(one);
     }
 
     @Test

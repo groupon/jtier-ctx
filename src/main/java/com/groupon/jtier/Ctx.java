@@ -52,7 +52,7 @@ public class Ctx implements AutoCloseable {
         return t;
     });
 
-    private static final ThreadLocal<Optional<Ctx>> ATTACHED = ThreadLocal.withInitial(Optional::empty);
+    private static final ThreadLocal<Ctx> ATTACHED = ThreadLocal.withInitial(Ctx::empty);
 
     private final Life life;
     private final Map<Key<?>, Object> values;
@@ -69,16 +69,26 @@ public class Ctx implements AutoCloseable {
         return new Ctx(new Life(Optional.empty()), Collections.emptyMap());
     }
 
+    /**
+     * @return
+     * @deprecated use {@link Ctx#current()}
+     */
+    @Deprecated
     public static Optional<Ctx> fromThread() {
+        return Optional.of(ATTACHED.get());
+    }
+
+    public static Ctx current() {
         return ATTACHED.get();
     }
 
     /**
      * Forcibly detach whatever context is presently attached to the current thread.
-     * It is preferred to use {@link Ctx#close()}.
+     * It is preferred to use {@link Ctx#detach()}.
      */
     public static void cleanThread() {
-        ATTACHED.get().ifPresent(Ctx::detach);
+        ATTACHED.get().detach();
+        Ctx.empty().attach();
     }
 
     public static <T> Key<T> key(final String name, final Class<T> type) {
@@ -89,16 +99,14 @@ public class Ctx implements AutoCloseable {
      * @return
      */
     public Ctx attach() {
-        final Optional<Ctx> previouslyAttached = ATTACHED.get();
-        if (previouslyAttached.isPresent()) {
-            if (previouslyAttached.get() == this) {
-                return this;
-            }
-            previouslyAttached.get().detach();
+        final Ctx previous = ATTACHED.get();
+        if (previous == this) {
+            // NOOP
+            return this;
         }
+        previous.detach();
 
-        ATTACHED.set(Optional.of(this));
-        this.attachListeners.forEach(Runnable::run);
+        justAttach(this);
         return this;
     }
 
@@ -201,8 +209,7 @@ public class Ctx implements AutoCloseable {
     }
 
     /**
-     * Detach this context from the current thread. If this Ctx is NOT attached to the current thread
-     * it will raise an IllegalStateException.
+     * An alias for `Ctx#cancel()`
      */
     @Override
     public void close() {
@@ -217,18 +224,23 @@ public class Ctx implements AutoCloseable {
     }
 
     public void detach() {
-        final Optional<Ctx> o = ATTACHED.get();
-        if (o.isPresent()) {
-            final Ctx attached = o.get();
-            if (attached != this) {
-                throw new IllegalStateException("Attempt to detach different context from current thread");
-            }
-            ATTACHED.set(Optional.empty());
+        detach(Ctx.empty());
+    }
+
+    public void detach(Ctx toAttach) {
+        final Ctx attached = ATTACHED.get();
+        if (attached == this) {
             this.detachListeners.forEach(Runnable::run);
+            justAttach(toAttach);
         }
-        else {
-            throw new IllegalStateException("Attempt to detach context from unattached thread");
-        }
+    }
+
+    /**
+     * helper method used to avoid mutual recursion on attach/detach
+     */
+    private void justAttach(Ctx toAttach) {
+        ATTACHED.set(toAttach);
+        toAttach.attachListeners.forEach(Runnable::run);
     }
 
     /**

@@ -34,10 +34,10 @@ public class LoggingExample {
         c.onDetach(MDC::clear);
 
 
-        try (Ctx ignored = c.attach()) {
+        try (Ctx ctx = c.attach()) {
             final Logger logger = LoggerFactory.getLogger(LoggingExample.class);
             logger.debug("log");
-            ignored.detach();
+            ctx.detach();
         }
 
         assertThat(MDC.get("name")).isNull();

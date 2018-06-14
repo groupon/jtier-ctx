@@ -61,6 +61,7 @@ public class OkHttpExample {
             final Call call = this.ok.newCall(new Request.Builder().url(this.web.url("/")).build());
             final Response response = call.execute();
             assertThat(response.code()).isEqualTo(200);
+            _i.detach();
         }
 
         assertThat(this.web.takeRequest().getHeader("X-Request-Id")).isEqualTo(id.toString());

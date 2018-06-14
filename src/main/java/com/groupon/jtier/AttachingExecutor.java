@@ -57,8 +57,6 @@ class AttachingExecutor extends AbstractExecutorService {
 
     @Override
     public void execute(final Runnable command) {
-        this.target.execute(Ctx.fromThread()
-                               .map((ctx) -> ctx.propagate(command))
-                               .orElse(command));
+        this.target.execute(Ctx.current().propagate(command));
     }
 }
